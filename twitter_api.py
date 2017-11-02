@@ -13,9 +13,16 @@ auth.secure = True
 
 api = tweepy.API(auth, wait_on_rate_limit = True, wait_on_rate_limit_notify = True)
 
-def process_or_store(tweet):
-    print(json.dumps(tweet))
+hashTweet = tweepy.Cursor(api.search, q='Happiest5WordSentence').items(1)
 
-for tweet in tweepy.Cursor(api.home_timeline).items(5):
-    #print(tweet)
-    process_or_store(tweet.json)
+print (api.get_user("drag0409"))
+
+for tweet in hashTweet:
+    print("\n")
+    print(tweet)
+    #print (tweet.id_str)
+    #print (tweet.user.screen_name)
+    #print (tweet.created_at)
+    #print (tweet.entities['hashtags'][0]['text'])
+    #print (tweet.text)
+    #print (tweet.lang)
