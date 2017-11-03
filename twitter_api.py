@@ -1,5 +1,6 @@
+import time
+import sys
 import tweepy
-import json
 from tweepy import OAuthHandler
 
 consumer_key = 'A1Pn5OSpVOpXuKV9Blz8xKvKP'
@@ -11,18 +12,82 @@ auth = OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_secret)
 auth.secure = True
 
-api = tweepy.API(auth, wait_on_rate_limit = True, wait_on_rate_limit_notify = True)
+api = tweepy.API(auth, wait_on_rate_limit = True, wait_on_rate_limit_notify = True, parser=tweepy.parsers.JSONParser())
 
-hashTweet = tweepy.Cursor(api.search, q='Happiest5WordSentence').items(1)
 
-print (api.get_user("drag0409"))
+from py2neo import Graph, authenticate
 
-for tweet in hashTweet:
-    print("\n")
-    print(tweet)
-    #print (tweet.id_str)
-    #print (tweet.user.screen_name)
-    #print (tweet.created_at)
-    #print (tweet.entities['hashtags'][0]['text'])
-    #print (tweet.text)
-    #print (tweet.lang)
+authenticate("localhost:7474", "neo4j", "guereca1996")
+
+graph_db = Graph("http://localhost:7474/db/data")
+
+def post_tweets(hashtag_string):
+
+    try:
+        graph_db.run("""
+            CREATE CONSTRAINT ON (t:Tweet) ASSERT t.id IS UNIQUE
+            CREATE CONSTRAINT ON (u:User) ASSERT u.screen_name IS UNIQUE
+            CREATE CONSTRAINT ON (h:Hashtag) ASSERT h.name IS UNIQUE
+            CREATE CONSTRAINT ON (l:Link) ASSERT l.url IS UNIQUE
+            CREATE CONSTRAINT ON (s:Source) ASSERT s.name IS UNIQUE
+        """)
+    except:
+        pass
+
+    tweets = api.search(q = hashtag_string,rpp = 100, count=1000)["statuses"]
+
+    query_string = """
+    UNWIND {tweets} AS t
+    WITH t
+    ORDER BY t.id
+
+    WITH t,
+        t.entities AS e,
+        t.user AS u,
+        t.retweeted_status AS retweet
+    MERGE (tweet:Tweet {id:t.id})
+    SET tweet.text = t.text,
+        tweet.created_at = t.created_at,
+        tweet.favorites = t.favorites_count
+
+    MERGE (user:User {screen_name:u.screen_name})
+    SET user.name = u.name,
+        user.location = u.location,
+        user.followers = u.followers_count,
+        user.following = u.friends_count,
+        user.statuses = u.statusus_count,
+        user.profile_image_url = u.profile_image_url
+
+    MERGE (user)-[:POSTS]->(tweet)
+
+    MERGE (source:Source {name:t.source})
+    MERGE (tweet)-[:USING]->(source)
+
+    FOREACH (h IN e.hashtags |
+        MERGE (tag:Hashtag {name:LOWER(h.text)})
+        MERGE (tag)-[:TAGS]->(tweet)
+    )
+
+    FOREACH (u IN e.urls |
+        MERGE (url:Link {url:u.expanded_url})
+        MERGE (tweet)-[:CONTAINS]->(url)
+    )
+
+    FOREACH (m IN e.user_mentions |
+        MERGE (mentioned:User {screen_name:m.screen_name})
+        ON CREATE SET mentioned.name = m.name
+        MERGE (tweet)-[:MENTIONS]->(mentioned)
+    )
+
+    FOREACH (r IN [r IN [t.in_reply_to_status_id] WHERE r IS NOt NULL] |
+        MERGE (reply_tweet:Tweet {id:r})
+        MERGE (tweet)-[:REPLY_TO]->(reply_tweet)
+    )
+
+    FOREACH (retweet_id IN [x IN [retweet.id] WHERE x IS NOt NULL] |
+        MERGE (reply_tweet:Tweet {id:retweet_id})
+        MERGE (tweet)-[:RETWEETS]->(retweet_tweet)
+    )
+    """
+    graph_db.run(query_string, {'tweets':tweets})
+    print("Tweets added to graph!\n")
