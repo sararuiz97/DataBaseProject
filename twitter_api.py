@@ -1,6 +1,7 @@
 import time
 import sys
 import tweepy
+from json import dumps
 from tweepy import OAuthHandler
 
 consumer_key = 'A1Pn5OSpVOpXuKV9Blz8xKvKP'
@@ -91,3 +92,15 @@ def post_tweets(hashtag_string):
     """
     graph_db.run(query_string, {'tweets':tweets})
     print("Tweets added to graph!\n")
+
+def get_JSON(hashtag_string):
+
+    req_query= """
+    MATCH p=(n:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[r*]->(m) where NONE( rel in r WHERE type(rel)="RETWEETS") RETURN n, r, m LIMIT 150
+    """
+
+    print (req_query)
+
+    test = dumps(graph_db.run(req_query).data(), sort_keys=True, indent=4, separators=(',', ': '))
+    #print (test)
+    return(test)
