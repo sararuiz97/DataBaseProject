@@ -96,7 +96,7 @@ def post_tweets(hashtag_string):
 def get_JSON(hashtag_string):
 
     req_query= """
-    MATCH p=(n:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[r*]->(m) where NONE( rel in r WHERE type(rel)="RETWEETS") RETURN n, r, m LIMIT 150
+    MATCH p=(n:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[r*]->(m) where NONE( rel in r WHERE type(rel)="RETWEETS") RETURN n as Tweet, extract(x IN rels(p)| type(x)) AS types, m as Related LIMIT 150
     """
 
     print (req_query)
