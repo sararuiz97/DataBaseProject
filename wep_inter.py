@@ -12,10 +12,18 @@ app.config['SECRET_KEY'] = '7d441f27d441f27567d441f2b6176a'
 class ReusableForm(Form):
     hash = TextField('Name:', validators=[validators.required()])
 
+@app.route("/test")
+def test():
+    return render_template('test.html')
+
+@app.route("/graphFile.json")
+def getJ():
+    return render_template('graphFile.json')
+
 @app.route("/getTweets/<string:hash>")
 def getTweets(hash):
     tweets = get_JSON(hash)
-    print (tweets)
+    #print (tweets)
     #print (loads(tweets))
     return render_template('index.html', tweets = loads(tweets))
 

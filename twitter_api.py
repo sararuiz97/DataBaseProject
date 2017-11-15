@@ -1,7 +1,8 @@
 import time
 import sys
 import tweepy
-from json import dumps, dump
+import os
+from json import dumps, dump, loads
 from tweepy import OAuthHandler
 
 consumer_key = 'A1Pn5OSpVOpXuKV9Blz8xKvKP'
@@ -104,7 +105,15 @@ def get_JSON(hashtag_string):
     query = graph_db.run(req_query).data()
     test = dumps(query, sort_keys=True, indent=4, separators=(',', ': '))
 
-    with open('data.txt', 'w') as outfile:
-        dump(query, outfile)
+    with open('data.txt', "a+") as outfile:
+        query = map(str, test)
+        line = ",".join(test)
+        outfile.write(line)
+    outfile.closed
+
     #print (test)
+
+    #os.system("javac ")
+    #os.sysetm("java ")
+
     return(test)
