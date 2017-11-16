@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <script src="http://d3js.org/d3.v2.min.js?2.9.3"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <style>
 
 .link {
@@ -14,15 +15,15 @@ cursos:pointer;
 
 .node circle{
 
-fill:#555;
+
 }
 
 </style>
 <body>
 <script>
 
-var width = 960,
-    height = 500
+var width = document.documentElement.clientWidth;
+    height = document.documentElement.clientHeight;
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
@@ -48,12 +49,13 @@ d3.json("graphFile.json", function(json) {
 
   var node = svg.selectAll(".node")
       .data(json.nodes)
-    .enter().append("g")
+      .enter().append("g")
       .attr("class", "node")
       .call(force.drag);
-
+  
   node.append("circle")
-      .attr("r","10");
+      .attr("r","5")
+      .style("fill", "008A85")
 
   node.append("text")
       .attr("dx", 12)

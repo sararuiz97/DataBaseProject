@@ -96,24 +96,85 @@ def post_tweets(hashtag_string):
 
 def get_JSON(hashtag_string):
 
-    req_query= """
-    MATCH p=(n:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[r*]->(m) where NONE( rel in r WHERE type(rel)="RETWEETS") RETURN n as Tweet, extract(x IN rels(p)| type(x)) AS types, m as Related LIMIT 150
+    users_tweets_query= """
+    MATCH (n:User)-[r:POSTS]->(m:Tweet) where  NOT (m)-[:RETWEETS]->()
+    MATCH (p:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[:TAGS]->(m)
+    RETURN type(r) as type, m.id as tweet_id,  m.text as tweet_text, n.screen_name as screen_name, n.name as name, n.followers as followers, n.following as following LIMIT 100
     """
 
-    print (req_query)
+    mentions_tweets_query= """
+    MATCH (n:User)<-[r:MENTIONS]-(m:Tweet) where  NOT (m)-[:RETWEETS]->()
+    MATCH (p:Hashtag {name:'"""+hashtag_string.lower()+"""'})-[:TAGS]->(m)
+    RETURN type(r) as type, m.id as tweet_id,  m.text as tweet_text, n.screen_name as screen_name, n.name as name, n.followers as followers, n.following as following ORDER BY tweet_id LIMIT 150
+    """
 
-    query = graph_db.run(req_query).data()
-    test = dumps(query, sort_keys=True, indent=4, separators=(',', ': '))
+    query_users = graph_db.run(users_tweets_query).data()
+    query_mentions = graph_db.run(mentions_tweets_query).data()
 
-    with open('data.txt', "a+") as outfile:
-        query = map(str, test)
-        line = ",".join(test)
-        outfile.write(line)
+    query_users_string = dumps(query_users, sort_keys=True, indent=2, separators=(',', ': '))
+    query_mentions_string = dumps(query_mentions, sort_keys=True, indent=2, separators=(',', ': '))
+
+    #print(query_users_string)
+    #print(query_mentions_string)
+
+    opJson = {"links":[], "nodes":[]};
+
+    first = 0
+
+    for item in query_users:
+        opJson["nodes"].append({"group":1, "name":item['tweet_id']})
+        first += 1
+
+    counter = 0
+
+    for item in query_users:
+        opJson["nodes"].append({"group":2, "name":item['screen_name']})
+        opJson["links"].append({"source":counter,"target":first,"weight":1})
+        counter += 1
+        first += 1
+
+    tweet = 0
+
+    for item in query_users:
+        for user in query_mentions:
+            if (item['tweet_id'] == user['tweet_id']):
+                opJson["nodes"].append({"group":3, "name":user['screen_name']})
+                opJson["links"].append({"source":tweet,"target":first,"weight":1})
+                first += 1
+        tweet += 1
+
+    opJson["nodes"].append({"group":4, "name":hashtag_string})
+    more = 0
+
+    for item in query_users:
+        opJson["links"].append({"source":first,"target":more,"weight":1})
+        more += 1
+
+    anotherCounter = 0
+    mentions = 0
+
+    #for tweet in query_users:
+    #    for item in query_mentions:
+    #        if (item['tweet_id'] == tweet['tweet_id']):
+
+
+
+    with open('templates/graphFile.json', "a+") as outfile:
+        outfile.seek(0)
+        outfile.truncate()
+        dump(opJson, outfile)
+
     outfile.closed
+
+    #with open('data.txt', "a+") as outfile:
+    #    query = map(str, test)
+    #    line = ",".join(test)
+    #    outfile.write(line)
+    #outfile.closed
 
     #print (test)
 
     #os.system("javac ")
     #os.sysetm("java ")
 
-    return(test)
+    return(query_users_string)

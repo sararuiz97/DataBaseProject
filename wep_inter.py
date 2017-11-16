@@ -23,9 +23,7 @@ def getJ():
 @app.route("/getTweets/<string:hash>")
 def getTweets(hash):
     tweets = get_JSON(hash)
-    #print (tweets)
-    #print (loads(tweets))
-    return render_template('index.html', tweets = loads(tweets))
+    return redirect(url_for('test'))
 
 @app.route("/", methods=['GET', 'POST'])
 def hello():
