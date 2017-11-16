@@ -1,9 +1,12 @@
+import re
 import time
 import sys
 import tweepy
 import os
 from json import dumps, dump, loads
 from tweepy import OAuthHandler
+from textblob import TextBlob
+from graph import *
 
 consumer_key = 'A1Pn5OSpVOpXuKV9Blz8xKvKP'
 consumer_secret = 'QVJXB5XwF3AkOjZ83HJi3mK9n9icrArgGJXZxcZP01lzZZOsaU'
@@ -16,12 +19,26 @@ auth.secure = True
 
 api = tweepy.API(auth, wait_on_rate_limit = True, wait_on_rate_limit_notify = True, parser=tweepy.parsers.JSONParser())
 
-
 from py2neo import Graph, authenticate
 
 authenticate("localhost:7474", "neo4j", "guereca1996")
 
 graph_db = Graph("http://localhost:7474/db/data")
+
+def clean_tweet(tweet):
+
+    return ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)", " ", tweet).split())
+
+def get_tweet_sentiment(tweet):
+
+    analysis = TextBlob(clean_tweet(tweet))
+    # set sentiment
+    if analysis.sentiment.polarity > 0:
+        return 'positive'
+    elif analysis.sentiment.polarity == 0:
+        return 'neutral'
+    else:
+        return 'negative'
 
 def post_tweets(hashtag_string):
 
@@ -36,7 +53,9 @@ def post_tweets(hashtag_string):
     except:
         pass
 
-    tweets = api.search(q = hashtag_string,rpp = 100, count=1000)["statuses"]
+    tweets = api.search(q = hashtag_string,rpp = 1000, count=1000)["statuses"]
+
+    print(tweets)
 
     query_string = """
     UNWIND {tweets} AS t
@@ -117,18 +136,39 @@ def get_JSON(hashtag_string):
     #print(query_users_string)
     #print(query_mentions_string)
 
+    g = graph()
     opJson = {"links":[], "nodes":[]};
+
+    g.insert(Node(hashtag_string))
+
+    for item in query_users:
+        g.insert(Node(item['tweet_text']))
+        g.insert(Node(item['screen_name']))
+        g.nodes[item['screen_name']].insertAdj(g.nodes[item['tweet_text']], 5)
+        g.nodes[hashtag_string].insertAdj(g.nodes[item['tweet_text']], 5)
+
+    for item in query_users:
+        for user in query_mentions:
+            if (user['tweet_text'] == item['tweet_text']):
+                g.insert(Node(user['screen_name']))
+                g.nodes[item['screen_name']].insertAdj(g.nodes[user['tweet_text']], 5)
+
+    k = g.nodes.keys()
+    for i in range(5):
+        for key in k:
+            g.nodes[key].updateRank(0.85)
 
     first = 0
 
     for item in query_users:
-        opJson["nodes"].append({"group":1, "name":item['tweet_id']})
+        #print(get_tweet_sentiment(item['tweet_text']))
+        opJson["nodes"].append({"group":"00E6DD", "name":item['tweet_text'] + "<br>Impact: " + get_tweet_sentiment(item['tweet_text']), "r":g.nodes[item['tweet_text']].rank})
         first += 1
 
     counter = 0
 
     for item in query_users:
-        opJson["nodes"].append({"group":2, "name":item['screen_name']})
+        opJson["nodes"].append({"group":"FFA900", "name":"Screen name: " + item['screen_name'] + "<br>Name: " + item['name'] + "<br>Followers: " + str(item['followers']) + "<br>Following: " + str(item['following']), "r":g.nodes[item['screen_name']].rank})
         opJson["links"].append({"source":counter,"target":first,"weight":1})
         counter += 1
         first += 1
@@ -138,26 +178,17 @@ def get_JSON(hashtag_string):
     for item in query_users:
         for user in query_mentions:
             if (item['tweet_id'] == user['tweet_id']):
-                opJson["nodes"].append({"group":3, "name":user['screen_name']})
+                opJson["nodes"].append({"group":"FF7100", "name":"Screen name: " + item['screen_name'] + "<br>Name: " + item['name'] + "<br>Followers: " + str(item['followers']) + "<br>Following: " + str(item['following']), "r":g.nodes[item['screen_name']].rank})
                 opJson["links"].append({"source":tweet,"target":first,"weight":1})
                 first += 1
         tweet += 1
 
-    opJson["nodes"].append({"group":4, "name":hashtag_string})
+    opJson["nodes"].append({"group":"000000", "name":hashtag_string, "r":g.nodes[hashtag_string].rank})
     more = 0
 
     for item in query_users:
         opJson["links"].append({"source":first,"target":more,"weight":1})
         more += 1
-
-    anotherCounter = 0
-    mentions = 0
-
-    #for tweet in query_users:
-    #    for item in query_mentions:
-    #        if (item['tweet_id'] == tweet['tweet_id']):
-
-
 
     with open('templates/graphFile.json', "a+") as outfile:
         outfile.seek(0)
@@ -165,16 +196,5 @@ def get_JSON(hashtag_string):
         dump(opJson, outfile)
 
     outfile.closed
-
-    #with open('data.txt', "a+") as outfile:
-    #    query = map(str, test)
-    #    line = ",".join(test)
-    #    outfile.write(line)
-    #outfile.closed
-
-    #print (test)
-
-    #os.system("javac ")
-    #os.sysetm("java ")
 
     return(query_users_string)

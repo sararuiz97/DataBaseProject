@@ -1,6 +1,14 @@
 <html>
     <head>
         <title>Hashtag tweet visualizer</title>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous">
+        <style>
+            body {
+                background-position: top;
+                background-repeat: no-repeat;
+
+            }
+        </style>
     </head>
     <body>
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -14,14 +22,19 @@
         {% endwith %}
         <form action="" method="post">
             {{ form.csrf }}
+            <div class="col-lg-6">
+              <br>
+              {{ form.hash.label }}
+                <div class="input-group">
 
-            <div class="input text">
-                {{ form.hash.label }} {{ form.hash }}
+                      {{ form.hash(class_="form-control") }}
+                      <span class="input-group-btn">
+                        <input type="submit" class="btn btn-secondary"  value="Submit" />
+
+                      </span>
+                </div>
             </div>
 
-            <div class="input submit">
-                <input type="submit" value="Submit" />
-            </div>
         </form>
     </body>
 </html>

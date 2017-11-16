@@ -18,6 +18,18 @@ cursos:pointer;
 
 }
 
+div.tooltip {
+    position: absolute;
+    text-align: center;
+    width: 200px;
+    padding: 2px;
+    font: 12px sans-serif;
+    background: lightsteelblue;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+}
+
 </style>
 <body>
 <script>
@@ -29,10 +41,14 @@ var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height);
 
+var div = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
 var force = d3.layout.force()
     .gravity(.05)
-    .distance(100)
-    .charge(-100)
+    .distance(50)
+    .charge(-200)
     .size([width, height]);
 
 d3.json("graphFile.json", function(json) {
@@ -51,16 +67,37 @@ d3.json("graphFile.json", function(json) {
       .data(json.nodes)
       .enter().append("g")
       .attr("class", "node")
+      .on("mouseover", function(d) {
+          div.transition()
+              .duration(200)
+              .style("opacity", .9);
+          div	.html(d.name)
+              .style("left", (d3.event.pageX) + "px")
+              .style("top", (d3.event.pageY - 28) + "px");
+          })
+          //var g = d3.select(this); // The node
+          // The class is used to remove the additional text later
+          //var info = g.append('text')
+          //   .classed('info', true)
+          //   .attr('x', 20)
+          //   .attr('y', 10)
+          //   .text(function(d) { return d.name });
+      //})
+      .on("mouseout", function() {
+          div.transition()
+              .duration(500)
+              .style("opacity", 0);
+      })
       .call(force.drag);
-  
-  node.append("circle")
-      .attr("r","5")
-      .style("fill", "008A85")
 
-  node.append("text")
-      .attr("dx", 12)
-      .attr("dy", ".35em")
-      .text(function(d) { return d.name });
+  node.append("circle")
+      .attr("r",function(d) { return d.r*50 })
+      .style("fill", function(d) { return d.group })
+
+  //node.append("text")
+  //    .attr("dx", 12)
+  //    .attr("dy", ".35em")
+  //    .text(function(d) { return d.name });
 
   force.on("tick", function() {
     link.attr("x1", function(d) { return d.source.x; })
